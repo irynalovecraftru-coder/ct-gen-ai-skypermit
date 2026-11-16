@@ -49,15 +49,20 @@ jobs:
       - name: LLM-селектор
         run: |
           npm install -g @anthropic-ai/claude-code
-          { echo "## Папки колекції"; cat folders.txt; echo; echo "## Diff"; cat pr.diff; } > context.txt
-          if claude -p "Ти QA. За diff вибери папки колекції, які треба перезапустити. \
-          Формат: один рядок на папку, 'назва папки | причина'. Якщо API не зачеплено, нічого не пиши." \
-            --model sonnet --max-turns 1 < context.txt > llm.txt 2> llm-error.txt; then
+          { echo "## Папки колекції"; cat folders.txt; echo; echo "## Diff"; cat pr.diff; } > "$RUNNER_TEMP/context.txt"
+          cd "$RUNNER_TEMP"
+          if claude -p "Ти QA. Нижче список папок Postman-колекції і diff PR. Нічого не читай і не запускай, відповідай лише за цим текстом. \
+          Вибери папки, які треба перезапустити. Формат: один рядок на папку, 'назва папки | причина'. Якщо API не зачеплено, нічого не пиши." \
+            --model sonnet --max-turns 3 < context.txt > llm-out.txt 2> llm-error.txt; then
+            cp llm-out.txt "$GITHUB_WORKSPACE/llm.txt"
+          else
+            { echo "LLM не відповіла, запускаю всі папки."; echo "stdout:"; cat llm-out.txt; echo "stderr:"; cat llm-error.txt; } > "$GITHUB_WORKSPACE/llm.txt"
+            cp "$GITHUB_WORKSPACE/folders.txt" "$GITHUB_WORKSPACE/by-llm.txt"
+          fi
+          cd "$GITHUB_WORKSPACE"
+          if [ ! -f by-llm.txt ]; then
             cut -d'|' -f1 llm.txt | sed -E 's/^[-*[:space:]`]+//; s/[[:space:]`]+$//' \
               | grep -Fx -f folders.txt > by-llm.txt || true
-          else
-            { echo "LLM не відповіла, запускаю всі папки. Помилка:"; cat llm-error.txt; } > llm.txt
-            cp folders.txt by-llm.txt
           fi
           cat llm.txt
 
