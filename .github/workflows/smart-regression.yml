@@ -65,7 +65,8 @@ jobs:
         run: |
           curl -o- "https://dl-cli.pstmn.io/install/linux64.sh" | sh
           postman login --with-api-key "$POSTMAN_API_KEY"
-          sort -u by-script.txt by-llm.txt | grep -vx -e '00 Setup' -e '' > selected.txt || true
+          sort -u by-script.txt by-llm.txt | grep -Fx -f folders.txt | grep -vx '00 Setup' > selected.txt || true
+          echo "Немає в колекції (пропускаю):"; sort -u by-script.txt by-llm.txt | grep -vFx -f folders.txt || true
           args=(-i "00 Setup")
           while IFS= read -r f; do args+=(-i "$f"); done < selected.txt
           echo "Запускаю: ${args[*]}"
