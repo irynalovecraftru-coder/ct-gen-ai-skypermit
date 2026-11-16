@@ -30,13 +30,21 @@ jobs:
 
       - name: Папки колекції з Postman
         run: |
+          echo "COLLECTION_UID: '${{ vars.COLLECTION_UID }}'"
           curl -s -H "X-Api-Key: $POSTMAN_API_KEY" \
-            https://api.getpostman.com/collections/${{ vars.COLLECTION_UID }} \
-            | jq -r '.collection.item[].name' > folders.txt
-          test -s folders.txt
+            "https://api.getpostman.com/collections/${{ vars.COLLECTION_UID }}" > collection.json
+          if ! jq -e '.collection' collection.json > /dev/null; then
+            echo "Postman API не повернув колекцію. Відповідь:"
+            jq . collection.json || cat collection.json
+            exit 1
+          fi
+          jq -r '.collection.item[].name' collection.json > folders.txt
+          echo "Папки:"; cat folders.txt
 
       - name: Скрипт-мапінг
-        run: node scripts/select-regression.mjs < changed.txt > by-script.txt
+        run: |
+          node qa/scripts/select-regression.mjs < changed.txt > by-script.txt
+          cat by-script.txt
 
       - name: LLM-селектор
         run: |
@@ -51,14 +59,16 @@ jobs:
             echo "LLM не відповіла, запускаю всі папки" > llm.txt
             cp folders.txt by-llm.txt
           fi
+          cat llm.txt
 
       - name: Postman CLI — запуск вибраних папок
         run: |
           curl -o- "https://dl-cli.pstmn.io/install/linux64.sh" | sh
           postman login --with-api-key "$POSTMAN_API_KEY"
-          sort -u by-script.txt by-llm.txt | grep -vxE '00 Setup|' > selected.txt || true
+          sort -u by-script.txt by-llm.txt | grep -vx -e '00 Setup' -e '' > selected.txt || true
           args=(-i "00 Setup")
           while IFS= read -r f; do args+=(-i "$f"); done < selected.txt
+          echo "Запускаю: ${args[*]}"
           postman collection run ${{ vars.COLLECTION_UID }} -e ${{ vars.ENVIRONMENT_UID }} \
             --env-var "baseUrl=https://skypermit.vercel.app" "${args[@]}" | tee run.txt
 
@@ -69,8 +79,8 @@ jobs:
         run: |
           {
             echo "### Smart regression"
-            echo "**Скрипт-мапінг:**"; cat by-script.txt 2>/dev/null; echo
-            echo "**LLM-селектор:**"; echo '```'; cat llm.txt 2>/dev/null; echo '```'
+            echo "**Скрипт-мапінг:**"; cat by-script.txt 2>/dev/null || echo "не запускався"; echo
+            echo "**LLM-селектор:**"; echo '```'; cat llm.txt 2>/dev/null || echo "не запускався"; echo '```'
             echo "**Результат Postman:**"; echo '```'; tail -40 run.txt 2>/dev/null || echo "не запускався"; echo '```'
           } > comment.md
           gh pr comment ${{ github.event.pull_request.number }} --body-file comment.md
