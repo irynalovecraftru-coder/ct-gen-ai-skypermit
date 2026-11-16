@@ -71,7 +71,7 @@ jobs:
           while IFS= read -r f; do args+=(-i "$f"); done < selected.txt
           echo "Запускаю: ${args[*]}"
           postman collection run ${{ vars.COLLECTION_UID }} -e ${{ vars.ENVIRONMENT_UID }} \
-            --env-var "baseUrl=https://skypermit.vercel.app" "${args[@]}" | tee run.txt
+            --env-var "baseUrl=https://skypermit.vercel.app/api/v1" "${args[@]}" | tee run.txt
 
       - name: Коментар у PR
         if: always()
