@@ -1,0 +1,7 @@
+{
+  "lib/gates/time-window-gate.ts": ["Lead time too short", "Duration"],
+  "lib/gates/aircraft-gate.ts": ["Weight band"],
+  "lib/gates/pilot-gate.ts": ["Pilot"],
+  "lib/gates/zone-gate.ts": ["Zone"],
+  "lib/state-machine.ts": ["Lifecycle"]
+}
