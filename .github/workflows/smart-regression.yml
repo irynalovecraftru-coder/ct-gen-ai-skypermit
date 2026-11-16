@@ -52,11 +52,11 @@ jobs:
           { echo "## Папки колекції"; cat folders.txt; echo; echo "## Diff"; cat pr.diff; } > context.txt
           if claude -p "Ти QA. За diff вибери папки колекції, які треба перезапустити. \
           Формат: один рядок на папку, 'назва папки | причина'. Якщо API не зачеплено, нічого не пиши." \
-            --model claude-sonnet-5-5 --max-turns 1 < context.txt > llm.txt; then
+            --model sonnet --max-turns 1 < context.txt > llm.txt 2> llm-error.txt; then
             cut -d'|' -f1 llm.txt | sed -E 's/^[-*[:space:]`]+//; s/[[:space:]`]+$//' \
               | grep -Fx -f folders.txt > by-llm.txt || true
           else
-            echo "LLM не відповіла, запускаю всі папки" > llm.txt
+            { echo "LLM не відповіла, запускаю всі папки. Помилка:"; cat llm-error.txt; } > llm.txt
             cp folders.txt by-llm.txt
           fi
           cat llm.txt
